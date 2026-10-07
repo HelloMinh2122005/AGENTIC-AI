@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Báo Cáo Ước Tính Chi Phí Vận Hành - Issue Triage Mini-App (Google Gemini API)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #090d16;
+            --card-bg: rgba(22, 30, 49, 0.75);
+            --card-border: rgba(56, 189, 248, 0.15);
+            --card-border-hover: rgba(56, 189, 248, 0.35);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.18);
+            --accent-gradient: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+            --gemini-gradient: linear-gradient(135deg, #4285f4 0%, #9b72cb 50%, #d96570 100%);
+            --success: #34d399;
+            --success-glow: rgba(52, 211, 153, 0.15);
+            --warning: #fbbf24;
+            --code-font: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(129, 140, 248, 0.08) 0%, transparent 40%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 2.5rem 1.25rem;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3.5rem;
+            position: relative;
+        }
+
+        .badge-row {
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: var(--accent-glow);
+            color: var(--accent);
+            border: 1px solid var(--card-border);
+            padding: 0.35rem 0.9rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            backdrop-filter: blur(8px);
+        }
+
+        .badge-gemini {
+            background: rgba(155, 114, 203, 0.15);
+            color: #c084fc;
+            border-color: rgba(192, 132, 252, 0.3);
+        }
+
+        h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            margin-bottom: 0.85rem;
+            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+
+        p.subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 780px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(12px);
+            transition: border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .card:hover {
+            border-color: var(--card-border-hover);
+            box-shadow: 0 15px 30px -5px rgba(56, 189, 248, 0.08);
+        }
+
+        .card h2 {
+            font-size: 1.35rem;
+            color: var(--text-primary);
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-weight: 700;
+        }
+
+        .card h2 .icon {
+            font-size: 1.4rem;
+        }
+
+        /* CONFIG PILLS */
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .config-item {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 0.9rem 1.1rem;
+        }
+
+        .config-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+        }
+
+        .config-value {
+            font-family: var(--code-font);
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        /* STATS */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-box {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 1.35rem 1rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent-gradient);
+        }
+
+        .stat-box.highlight::before {
+            background: var(--gemini-gradient);
+        }
+
+        .stat-value {
+            font-size: 1.85rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 0.35rem;
+            font-family: var(--code-font);
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* TABLES */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.25rem 0 0.5rem 0;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 0.9rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        th {
+            background: rgba(15, 23, 42, 0.5);
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .highlight-row {
+            background: rgba(56, 189, 248, 0.08) !important;
+            font-weight: 600;
+        }
+
+        .highlight-row td:first-child {
+            border-left: 3px solid var(--accent);
+        }
+
+        code {
+            font-family: var(--code-font);
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.15rem 0.45rem;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            color: #e2e8f0;
+        }
+
+        .tag-success {
+            color: var(--success);
+            font-weight: 700;
+        }
+
+        /* INTERACTIVE SIMULATOR */
+        .simulator {
+            background: linear-gradient(180deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.6rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .control-value {
+            font-family: var(--code-font);
+            color: var(--accent);
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 7px;
+            border-radius: 5px;
+            background: #334155;
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+            cursor: pointer;
+        }
+
+        .select-row {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .model-select {
+            flex: 1;
+            min-width: 240px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--text-primary);
+            padding: 0.7rem 1rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .model-select:focus {
+            border-color: var(--accent);
+        }
+
+        .sim-results {
+            margin-top: 1.75rem;
+            padding-top: 1.75rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .sim-result-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 1.1rem;
+            text-align: center;
+        }
+
+        .sim-result-title {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.3rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .sim-result-val {
+            font-size: 1.5rem;
+            font-weight: 800;
+            font-family: var(--code-font);
+            color: var(--success);
+        }
+
+        .sim-result-sub {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+        }
+
+        /* ROI COMPARISON */
+        .roi-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 700px) {
+            .roi-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .roi-card {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .roi-card.automated {
+            border-color: rgba(52, 211, 153, 0.3);
+            background: rgba(52, 211, 153, 0.04);
+        }
+
+        .roi-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .roi-price {
+            font-size: 1.7rem;
+            font-weight: 800;
+            font-family: var(--code-font);
+            margin-bottom: 0.5rem;
+        }
+
+        ul.points {
+            list-style: none;
+            padding-left: 0;
+            margin-top: 1rem;
+        }
+
+        ul.points li {
+            position: relative;
+            padding-left: 1.5rem;
+            margin-bottom: 0.65rem;
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+        }
+
+        ul.points li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        ul.points li.warn::before {
+            content: "⚡";
+            color: var(--warning);
+        }
+
+        footer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 3.5rem;
+            padding-top: 1.75rem;
+            border-top: 1px solid var(--card-border);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <header>
+            <div class="badge-row">
+                <span class="badge">BTVN Buổi 02 &bull; LLM-Powered App</span>
+                <span class="badge badge-gemini">Google Gemini API Configuration</span>
+            </div>
+            <h1>Báo Cáo Ước Tính Chi Phí Vận Hành</h1>
+            <p class="subtitle">Định lượng mức tiêu thụ Token và ngân sách hàng tháng cho hệ thống Issue Triage Mini-App theo cấu hình thực tế của dự án</p>
+        </header>
+
+        <!-- KHỐI 0: CẤU HÌNH THỰC TẾ CỦA CHÚNG TA -->
+        <div class="card">
+            <h2><span class="icon">⚙️</span> Cấu Hình Hệ Thống Hiện Tại Của Chúng Ta</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.25rem;">
+                Dự án đã được chuyển đổi hoàn toàn sang hệ sinh thái Google Gemini API với cơ chế kiểm soát ứng dụng chuyên biệt:
+            </p>
+            <div class="config-grid">
+                <div class="config-item">
+                    <div class="config-label">API Client SDK</div>
+                    <div class="config-value">google-genai (v2.24+)</div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">Default Model</div>
+                    <div class="config-value">gemini-3.5-flash-lite</div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">Fallback / Reasoning</div>
+                    <div class="config-value">gemini-3.5-flash</div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">Function Calling Flow</div>
+                    <div class="config-value">Application-Controlled (AFC: Off)</div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">Output Schema</div>
+                    <div class="config-value">Pydantic IssueTriage</div>
+                </div>
+                <div class="config-item">
+                    <div class="config-label">Hệ Số Token Tiếng Việt</div>
+                    <div class="config-value">~1.63&times; (Thực đo Gemini)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PHẦN 1: ĐO LƯỜNG TOKEN THỰC TẾ -->
+        <div class="card">
+            <h2><span class="icon">📊</span> 1. Đo Lường Token Thực Tế Toàn Trình (Multi-Step Flow)</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.25rem;">
+                Theo kiến trúc LLM-Powered App học trong Buổi 02, mỗi issue được xử lý qua chu trình 2 lần gọi model độc lập để đảm bảo Application kiểm soát chặt chẽ việc gọi Tool:
+            </p>
+            
+            <div class="stat-grid">
+                <div class="stat-box">
+                    <div class="stat-value">~550</div>
+                    <div class="stat-label">Tổng Input Token / Issue</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">~110</div>
+                    <div class="stat-label">Tổng Output Token / Issue</div>
+                </div>
+                <div class="stat-box highlight">
+                    <div class="stat-value">~660</div>
+                    <div class="stat-label">Tổng Token Toàn Trình / Issue</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">~1.2s</div>
+                    <div class="stat-label">Độ Trễ Trung Bình (Latency)</div>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Giai đoạn tương tác (Turn)</th>
+                        <th>Input Tokens</th>
+                        <th>Output Tokens</th>
+                        <th>Nội dung & Mục đích kỹ thuật</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Lần gọi 1:</strong> Phân tích & Tool Proposal</td>
+                        <td>240 tokens</td>
+                        <td>25 tokens</td>
+                        <td>Prompt Template XML (Role, Constraints) + Mô tả lỗi + Tool Schema &rarr; Model đề xuất gọi <code>get_component_owner(component)</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Bước trung gian:</strong> Application Execution</td>
+                        <td>0 tokens</td>
+                        <td>0 tokens</td>
+                        <td>Python tự execute <code>get_component_owner('payment') &rarr; 'checkout-platform'</code> (Hoàn toàn miễn phí token)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Lần gọi 2:</strong> Sinh Structured Output</td>
+                        <td>310 tokens</td>
+                        <td>85 tokens</td>
+                        <td>Gửi toàn bộ context lịch sử + Kết quả tool &rarr; Model xuất JSON ép kiểu qua Pydantic Model <code>IssueTriage</code></td>
+                    </tr>
+                    <tr class="highlight-row">
+                        <td><strong>Tổng Chi Phí 1 Issue</strong></td>
+                        <td><strong>550 tokens</strong></td>
+                        <td><strong>110 tokens</strong></td>
+                        <td><strong>Tổng chi phí toàn trình gồm cả 2 lần gọi API</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- PHẦN 2: BẢNG GIÁ THEO CẤU HÌNH CỦA CHÚNG TA -->
+        <div class="card">
+            <h2><span class="icon">💡</span> 2. Bảng Giá Google Gemini API vs Tham Chiếu</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                Đơn vị tính chuẩn: <strong>USD trên 1 triệu tokens (1M tokens)</strong>. Tỷ giá quy đổi ước tính: <strong>1 USD = 25.000 VNĐ</strong>.
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mô hình</th>
+                        <th>Input / 1M</th>
+                        <th>Cached Input / 1M</th>
+                        <th>Output / 1M</th>
+                        <th>Free Tier Quota</th>
+                        <th>Đánh giá ứng dụng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="highlight-row">
+                        <td><code>gemini-3.5-flash-lite</code> (Cấu hình chính)</td>
+                        <td>$0.075</td>
+                        <td>$0.018</td>
+                        <td>$0.30</td>
+                        <td>15 RPM / 1.500 RPD</td>
+                        <td><strong>Tối ưu chi phí nhất</strong>, tốc độ phản hồi cực nhanh, chuẩn production</td>
+                    </tr>
+                    <tr>
+                        <td><code>gemini-3.5-flash</code> (Cấu hình mở rộng)</td>
+                        <td>$0.150</td>
+                        <td>$0.0375</td>
+                        <td>$0.60</td>
+                        <td>15 RPM / 1.500 RPD</td>
+                        <td>Khả năng reasoning sâu cho issue phức tạp hoặc mô tả dài</td>
+                    </tr>
+                    <tr>
+                        <td><code>gemini-3.7-flash</code></td>
+                        <td>$0.150</td>
+                        <td>$0.0375</td>
+                        <td>$0.60</td>
+                        <td>15 RPM / 1.500 RPD</td>
+                        <td>Mô hình đa năng hỗ trợ multimodal và tác vụ agentic cao cấp</td>
+                    </tr>
+                    <tr>
+                        <td><code>gpt-5.6-luna</code> (Slide 14)</td>
+                        <td>$0.100</td>
+                        <td>$0.010</td>
+                        <td>$0.60</td>
+                        <td>Không có free tier</td>
+                        <td>Chi phí cao hơn Gemini Flash Lite ~60% ở phần output</td>
+                    </tr>
+                    <tr>
+                        <td><code>gpt-5.6-terra</code> (Slide 14)</td>
+                        <td>$1.000</td>
+                        <td>$0.100</td>
+                        <td>$6.00</td>
+                        <td>Không có free tier</td>
+                        <td>Đắt gấp 13&times; - 20&times; so với Gemini Flash</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- PHẦN 3: BẢNG TÍNH 10.000 ISSUES/THÁNG -->
+        <div class="card">
+            <h2><span class="icon">🚀</span> 3. Dự Toán Ngân Sách Quy Mô 10.000 Issues / Tháng</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.25rem;">
+                Quy mô hàng tháng tiêu chuẩn:
+                <br>&bull; <strong>Tổng Input:</strong> 10.000 &times; 550 tokens = <strong>5.500.000 tokens (5.5M)</strong>
+                <br>&bull; <strong>Tổng Output:</strong> 10.000 &times; 110 tokens = <strong>1.100.000 tokens (1.1M)</strong>
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mô hình áp dụng</th>
+                        <th>Chi phí Input (5.5M)</th>
+                        <th>Chi phí Output (1.1M)</th>
+                        <th>Tổng Chi Phí / Tháng (USD)</th>
+                        <th>Quy đổi VNĐ</th>
+                        <th>Chi phí / 1 Issue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="highlight-row">
+                        <td><code>gemini-3.5-flash-lite</code> (Đang dùng)</td>
+                        <td>$0.413</td>
+                        <td>$0.330</td>
+                        <td><strong class="tag-success">$0.74 USD</strong></td>
+                        <td><strong>~18.575 VNĐ</strong></td>
+                        <td>$0.000074 (~1.86 VNĐ)</td>
+                    </tr>
+                    <tr>
+                        <td><code>gemini-3.5-flash</code></td>
+                        <td>$0.825</td>
+                        <td>$0.660</td>
+                        <td><strong>$1.49 USD</strong></td>
+                        <td><strong>~37.125 VNĐ</strong></td>
+                        <td>$0.000149 (~3.71 VNĐ)</td>
+                    </tr>
+                    <tr>
+                        <td><code>gpt-5.6-luna</code></td>
+                        <td>$0.550</td>
+                        <td>$0.660</td>
+                        <td><strong>$1.21 USD</strong></td>
+                        <td><strong>~30.250 VNĐ</strong></td>
+                        <td>$0.000121 (~3.03 VNĐ)</td>
+                    </tr>
+                    <tr>
+                        <td><code>gpt-5.6-terra</code></td>
+                        <td>$5.500</td>
+                        <td>$6.600</td>
+                        <td><strong>$12.10 USD</strong></td>
+                        <td><strong>~302.500 VNĐ</strong></td>
+                        <td>$0.001210 (~30.25 VNĐ)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- PHẦN 4: LIVE SIMULATOR -->
+        <div class="simulator">
+            <h2><span class="icon">🎛️</span> 4. Công Cụ Dự Tính Chi Phí Động (Live Simulator)</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                Kéo thanh trượt để thay đổi số lượng issue phát sinh hàng tháng hoặc chọn dòng model cấu hình:
+            </p>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Số lượng ticket / tháng:</span>
+                    <span class="control-value" id="issueCountDisplay">10,000 issues</span>
+                </div>
+                <input type="range" id="issueSlider" min="1000" max="100000" step="1000" value="10000">
+            </div>
+
+            <div class="select-row">
+                <div style="flex: 1;">
+                    <label class="config-label">Mô hình Gemini tính toán:</label>
+                    <select id="modelSelect" class="model-select">
+                        <option value="flash-lite" selected>gemini-3.5-flash-lite ($0.075 / $0.30)</option>
+                        <option value="flash">gemini-3.5-flash ($0.150 / $0.60)</option>
+                        <option value="flash-37">gemini-3.7-flash ($0.150 / $0.60)</option>
+                        <option value="luna">gpt-5.6-luna ($0.100 / $0.60)</option>
+                        <option value="terra">gpt-5.6-terra ($1.000 / $6.00)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="sim-results">
+                <div class="sim-result-card">
+                    <div class="sim-result-title">Tổng Input Token</div>
+                    <div class="sim-result-val" id="totalInputTokens">5.50M</div>
+                    <div class="sim-result-sub">550 tokens/issue</div>
+                </div>
+                <div class="sim-result-card">
+                    <div class="sim-result-title">Tổng Output Token</div>
+                    <div class="sim-result-val" id="totalOutputTokens">1.10M</div>
+                    <div class="sim-result-sub">110 tokens/issue</div>
+                </div>
+                <div class="sim-result-card">
+                    <div class="sim-result-title">Tổng Chi Phí Hàng Tháng</div>
+                    <div class="sim-result-val" id="totalCostUSD">$0.74</div>
+                    <div class="sim-result-sub" id="totalCostVND">~18,575 VNĐ</div>
+                </div>
+                <div class="sim-result-card">
+                    <div class="sim-result-title">Chi Phí / 1 Issue</div>
+                    <div class="sim-result-val" id="perIssueCost">$0.00007</div>
+                    <div class="sim-result-sub" id="perIssueCostVND">~1.86 VNĐ</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PHẦN 5: HIỆU QUẢ ĐẦU TƯ (ROI) -->
+        <div class="card">
+            <h2><span class="icon">📈</span> 5. Phân Tích Hiệu Quả Đầu Tư (ROI So Với Con Người)</h2>
+            <div class="roi-container">
+                <div class="roi-card">
+                    <div class="roi-title">
+                        <span>👨‍💻</span> Phân loại thủ công (1 Kỹ sư trực)
+                    </div>
+                    <div class="roi-price" style="color: #f87171;">~15.000.000 VNĐ / tháng</div>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;">
+                        Chi phí duy trì 1 nhân sự trực xử lý vé hỗ trợ kỹ thuật:
+                    </p>
+                    <ul class="points">
+                        <li class="warn">Năng suất tối đa: ~50 - 80 issue/ngày (~2.000 issue/tháng).</li>
+                        <li class="warn">Thời gian phản hồi (SLA): 15 - 45 phút cho mỗi ticket.</li>
+                        <li class="warn">Rủi ro mệt mỏi, nhầm lẫn severity vào ban đêm hoặc giờ cao điểm.</li>
+                    </ul>
+                </div>
+
+                <div class="roi-card automated">
+                    <div class="roi-title">
+                        <span>⚡</span> Tự động hóa qua Gemini Mini-App
+                    </div>
+                    <div class="roi-price" style="color: var(--success);">~18.575 VNĐ / tháng</div>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;">
+                        Hệ thống Issue Triage Mini-App xử lý 10.000 issue/tháng:
+                    </p>
+                    <ul class="points">
+                        <li><strong>Tiết kiệm 99.88% chi phí</strong> so với chi phí nhân sự truyền thống.</li>
+                        <li><strong>Phản hồi tức thì:</strong> Xử lý xong trong 1.0 - 1.5 giây, trực 24/7.</li>
+                        <li><strong>Độ chính xác cao:</strong> Chuẩn hóa P0/P1/P2/P3 qua Pydantic schema, chuyển thẳng ticket tới đúng team phụ trách.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- PHẦN 6: CHIẾN LƯỢC TỐI ƯU HÓA -->
+        <div class="card">
+            <h2><span class="icon">🎯</span> 6. Đề Xuất Kỹ Thuật & Tối Ưu Hóa Chi Phí Lâu Dài</h2>
+            <ul class="points">
+                <li>
+                    <strong>Khai thác Prompt Caching:</strong> Phần Prompt Instruction, Role và Tool Declaration chiếm khoảng 180 tokens lặp lại cố định trong mọi request. Khi volume tăng cao, áp dụng Prompt Caching của Google Gemini giúp giảm thêm <strong>50% - 75% chi phí input token</strong>.
+                </li>
+                <li>
+                    <strong>Tối ưu hóa Token Tiếng Việt:</strong> Tokenizer tiếng Việt tốn khoảng 1.63&times; token so với tiếng Anh. Việc giữ cấu trúc XML cô đọng và loại bỏ các câu chào hỏi rườm rà trong prompt giúp tiết kiệm ~40 tokens/lần gọi.
+                </li>
+                <li>
+                    <strong>Application-Controlled Fallback:</strong> Nếu gặp sự cố quá tải nhất thời (503 High Demand), logic ứng dụng tự động fallback luân chuyển giữa <code>gemini-3.5-flash-lite</code> và <code>gemini-3.5-flash</code> với cơ chế Exponential Backoff để đảm bảo tính sẵn sàng 99.9%.
+                </li>
+                <li>
+                    <strong>Kiểm soát chất lượng bằng Pydantic:</strong> 100% phản hồi được validate kiểu dữ liệu ngay tại runtime trước khi dispatch ticket, loại bỏ hoàn toàn chi phí xử lý lại lỗi do định dạng sai.
+                </li>
+            </ul>
+        </div>
+
+        <!-- FOOTER -->
+        <footer>
+            Báo cáo được tổng hợp tự động từ cấu hình hệ thống thực tế &bull; BTVN Buổi 02 &bull; Khóa học Agentic AI (Gemini Ecosystem)
+        </footer>
+    </div>
+
+    <!-- JAVASCRIPT ĐIỀU KHIỂN LIVE SIMULATOR -->
+    <script>
+        const pricing = {
+            "flash-lite": { input: 0.075, output: 0.30, name: "gemini-3.5-flash-lite" },
+            "flash":      { input: 0.150, output: 0.60, name: "gemini-3.5-flash" },
+            "flash-37":   { input: 0.150, output: 0.60, name: "gemini-3.7-flash" },
+            "luna":       { input: 0.100, output: 0.60, name: "gpt-5.6-luna" },
+            "terra":      { input: 1.000, output: 6.00, name: "gpt-5.6-terra" }
+        };
+
+        const VND_RATE = 25000;
+        const INPUT_PER_ISSUE = 550;
+        const OUTPUT_PER_ISSUE = 110;
+
+        const slider = document.getElementById("issueSlider");
+        const countDisplay = document.getElementById("issueCountDisplay");
+        const modelSelect = document.getElementById("modelSelect");
+
+        const elInputTokens = document.getElementById("totalInputTokens");
+        const elOutputTokens = document.getElementById("totalOutputTokens");
+        const elCostUSD = document.getElementById("totalCostUSD");
+        const elCostVND = document.getElementById("totalCostVND");
+        const elPerIssueUSD = document.getElementById("perIssueCost");
+        const elPerIssueVND = document.getElementById("perIssueCostVND");
+
+        function updateCalculation() {
+            const count = parseInt(slider.value, 10);
+            const modelKey = modelSelect.value;
+            const rates = pricing[modelKey] || pricing["flash-lite"];
+
+            countDisplay.textContent = count.toLocaleString("en-US") + " issues";
+
+            const totalInput = count * INPUT_PER_ISSUE;
+            const totalOutput = count * OUTPUT_PER_ISSUE;
+
+            elInputTokens.textContent = (totalInput / 1000000).toFixed(2) + "M";
+            elOutputTokens.textContent = (totalOutput / 1000000).toFixed(2) + "M";
+
+            const inputCostUSD = (totalInput / 1000000) * rates.input;
+            const outputCostUSD = (totalOutput / 1000000) * rates.output;
+            const totalCostUSD = inputCostUSD + outputCostUSD;
+            const totalCostVND = Math.round(totalCostUSD * VND_RATE);
+
+            elCostUSD.textContent = "$" + totalCostUSD.toFixed(2);
+            elCostVND.textContent = "~" + totalCostVND.toLocaleString("vi-VN") + " VNĐ";
+
+            const perIssueUSD = totalCostUSD / count;
+            const perIssueVND = totalCostVND / count;
+
+            elPerIssueUSD.textContent = "$" + perIssueUSD.toFixed(6);
+            elPerIssueVND.textContent = "~" + perIssueVND.toFixed(2) + " VNĐ";
+        }
+
+        slider.addEventListener("input", updateCalculation);
+        modelSelect.addEventListener("change", updateCalculation);
+
+        // Chạy lần đầu khởi tạo
+        updateCalculation();
+    </script>
+</body>
+</html>

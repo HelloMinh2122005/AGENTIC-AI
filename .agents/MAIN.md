@@ -1,0 +1,1 @@
+Mỗi bài tập là mỗi project. Luôn ưu tiên tạo 1 venv và requirements.txt tương ứng
